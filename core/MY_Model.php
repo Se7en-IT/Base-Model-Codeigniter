@@ -11,7 +11,6 @@
 
 class MY_Model extends CI_Model
 {
-    
     /**
      * The database table name
      *
@@ -122,7 +121,6 @@ class MY_Model extends CI_Model
 		}
     }
     
-    
 	public function insert($data, $skip_validation = FALSE)
     {
     	return $this->_insert($data, $skip_validation);
@@ -145,7 +143,6 @@ class MY_Model extends CI_Model
     		return $this->insert($data, $skip_validation);
     	}
     }
-    
     
     /***************************************************************/
    	/*                   PRIVATE/CORE METHOD					   */
