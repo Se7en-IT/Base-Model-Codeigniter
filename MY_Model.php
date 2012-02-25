@@ -58,109 +58,64 @@ class MY_Model extends CI_Model
     
   	public function __call($name, $args)
     {
-    	if (preg_match('/^find_(by|many)_([^)]+)$/', $name, $m) AND count($m) == 3)
+    	if (preg_match('/^(find|update|delete)$/', $name, $m) AND count($m) == 2)
 		{
-			$type = $m[1];
+			$method = $m[1];
+			
+			return call_user_func_array(array($this, $method."_by_".$this->primary_key),$args);
+		}
+		
+    	if (preg_match('/^(find|update|delete)_by_([^)]+)$/', $name, $m) AND count($m) == 3)
+		{
+			$method = $m[1];
 			$field = $m[2];
-
 			
-			$value = array_shift($args);
-			$limit = array_shift($args);
-			$offset = array_shift($args);
+			$values = array_shift($args);			
 			
-			if($type==="by"){
-				$this->where($field,$value);
-			}else{
-				$this->where_in($field,$value);
-			}
-			
-			return $this->find_all($limit, $offset);
+			array_unshift($args,array($field=>$values));
+						
+			return call_user_func_array(array($this, $method."_where"),$args);
 		}		    	
 		
-		if (preg_match('/^update_(by|many)_([^)]+)$/', $name, $m) AND count($m) == 3)
+		if (preg_match('/^(find|update|delete)_where$/', $name, $m) AND count($m) == 2)
 		{
-			$type = $m[1];
-			$field = $m[2];
-
+			$method = $m[1];
+				
+			$params = array_shift($args);
 			
-			$value = array_shift($args);
-			$data = array_shift($args);		
+			foreach($params as $field=>$values){
+				if(is_array($values)){
+					$this->where_in($field,$values);	
+				}else{
+					$this->where($field,$values);
+				}
+			}						
 			
-			if($type==="by"){
-				$this->where($field,$value);
-			}else{
-				$this->where_in($field,$value);
-			}
-			
-			return $this->db->update();
+			return call_user_func_array(array($this, "_".$method),$args);
 		}	
 		
 		if (method_exists($this->db, $name)){
-			return call_user_func(array($this->db,$name),$args);
+			return call_user_func_array(array($this->db,$name),$args);
 		}
     }
     
-    /**
-     * Get a single record by creating a WHERE clause with
-     * a value for your primary key
-     *
-     * @param string $primary_value The value of your primary key
-     * @return object
-     */
-    public function find($primary_value)
-    {
-       
-       $result=$this->find_by_{$this->primary_key}($primary_value);
-       if($result!==FALSE){
-       		$result=$result[0];
-       }
-       return $result;
-       
-    }
     
-     /**
-     * Similar to get(), but returns a result array of
-     * many result objects.
+  	/**
+     * Insert a new record into the database,
+     * calling the before and after create callbacks.
+     * Returns the insert ID.
      *
-     * @param string $key The key to search by
-     * @param string $values The value of that key
-     * @return array
+     * @param array $data Information
+     * @return integer
      */
-    public function find_many($primary_values)
+    public function save($data, $skip_validation = FALSE)
     {
-		return $this->find_many_{$this->primary_key}($primary_values);    	
-    }
-    
- 	/**
-     * Similar to get(), but returns a result array of
-     * many result objects.
-     *
-     * @param string $key The key to search by
-     * @param string $values The value of that key
-     * @return array
-     */
-    public function find_where($conditions,$limit=FALSE,$offset=FALSE)
-    {
-    	$this->where($conditions);
-    	
-		return $this->find_all($limit,$offset);    	
-    }
-    
-    /**
-     * Get all records in the database
-     *
-     * @return array
-     */
-    public function find_all($limit=FALSE,$offset=FALSE)
-    {
-        $this->trigger_event("before_find");
-        
-        $result = $this->db->get($this->_table,$limit,$offset)
-                            ->result();
-                
-        $this->trigger_event("after_find",array($result));
-
-        return $result;
+    	$data=(object)$data;
+    	if(!empty($data->{$this->primary_key})){
+    		return $this->update($data->{$this->primary_key}, $data, $skip_validation);
+    	}else{
+    		return $this->insert($data, $skip_validation);
+    	}
     }
     
      /**
@@ -188,6 +143,24 @@ class MY_Model extends CI_Model
         {
             return FALSE;
         }
+    }
+    
+   
+  	/**
+     * Get all records in the database
+     *
+     * @return array
+     */
+    private function _find($limit=FALSE,$offset=FALSE)
+    {
+        $this->trigger_event("before_find");
+        
+        $result = $this->db->get($this->_table,$limit,$offset)
+                            ->result();
+                
+        $this->trigger_event("after_find",array($result));
+
+        return $result;
     }
     
     /**
