@@ -60,4 +60,7 @@ METHODS
 + delete($id)
 + delete\_by\_{column\_name}($value)
 + delete\_where($where\_codeigniter\_clause)
-+ delete\_all()				
++ delete\_all()	
+
+### ORM 
++ save($data,$skip\_validation)			
