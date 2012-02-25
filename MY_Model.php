@@ -1,12 +1,11 @@
 <?php
 /**
- * A base model to provide the basic CRUD 
- * actions for all models that inherit from it.
+ * Advance CRUD actions for all models that inherit from it.
  *
  * @package CodeIgniter
  * @subpackage MY_Model
  * @link http://github.com/Se7en-IT/Base-Model-Codeigniter
- * @author Luca Musolino <http://lucamusolino.it>
+ * @author Luca Musolino a.k.a Se7en <http://lucamusolino.it>
  * @copyright Copyright (c) 2012, Luca Musolino <http://lucamusolino.it>
  */
 
@@ -28,42 +27,50 @@ class MY_Model extends CI_Model
     protected $primary_key = 'id';
     
      /**
-     * An array of validation rules
+     * An array of Codeigniter validation rules
      *
      * @var array
      */
     protected $validate = array();
 
-  
-    /**
-     * The class constructer
-     * 
-     */
+    
     public function __construct()
     {
         parent::__construct();                
         
     	if (empty($this->_table))
         {
-        	//tries to guess for table name
+        	//tries to search for table name
         	        
         	$this->load->helper('inflector');
         	
-            $class_name = preg_replace('/(_m|_model)?$/', '', get_class($this));
+            $class_name = preg_replace('/(_db|_model)?$/', '', get_class($this));
             
             $this->_table = plural(strtolower($class_name));
         }       
     }
     
-    
+   	/**
+     * The magic :)
+     * 
+	 */    
   	public function __call($name, $args)
     {
+    	/**
+    	 * find / update / delete by primary key
+    	 * 
+    	 */
     	if (preg_match('/^(find|update|delete)$/', $name, $m) AND count($m) == 2)
 		{
 			$method = $m[1];
 			
 			return call_user_func_array(array($this, $method."_by_".$this->primary_key),$args);
 		}
+		
+		/**
+    	 * find / update / delete by custom field
+    	 * 
+    	 */
 		
     	if (preg_match('/^(find|update|delete)_by_([^)]+)$/', $name, $m) AND count($m) == 3)
 		{
@@ -77,36 +84,57 @@ class MY_Model extends CI_Model
 			return call_user_func_array(array($this, $method."_where"),$args);
 		}		    	
 		
-		if (preg_match('/^(find|update|delete)_where$/', $name, $m) AND count($m) == 2)
+		/**
+    	 * find / update / delete by where codeigniter condition 
+    	 * OR
+    	 * find / update / delete all
+    	 * 
+    	 */
+		if (preg_match('/^(find|update|delete)_(where|all)$/', $name, $m) AND count($m) == 3)
 		{
 			$method = $m[1];
-				
-			$params = array_shift($args);
+			$type =$m[2];
 			
-			foreach($params as $field=>$values){
-				if(is_array($values)){
-					$this->where_in($field,$values);	
+			if($type==="where"){
+				$params = array_shift($args);
+				if(is_array($params)){				
+					foreach($params as $field=>$values){
+						if(is_array($values)){
+							$this->where_in($field,$values);	
+						}else{
+							$this->where($field,$values);
+						}
+					}
 				}else{
-					$this->where($field,$values);
+					$this->where($params);
 				}
 			}						
 			
 			return call_user_func_array(array($this, "_".$method),$args);
 		}	
 		
+		/**
+    	 * call database driver method
+    	 * 
+    	 */		
 		if (method_exists($this->db, $name)){
 			return call_user_func_array(array($this->db,$name),$args);
 		}
     }
     
     
+	public function insert($data, $skip_validation = FALSE)
+    {
+    	return $this->_insert($data, $skip_validation);
+    }
+    
   	/**
-     * Insert a new record into the database,
-     * calling the before and after create callbacks.
-     * Returns the insert ID.
+     * Save a record into the database.
+     * If the primary key exist then perform update else perform insert 
      *
-     * @param array $data Information
-     * @return integer
+     * @param array $data
+     * @param boolean $skip_validation 
+     * @return integer or boolean
      */
     public function save($data, $skip_validation = FALSE)
     {
@@ -118,40 +146,20 @@ class MY_Model extends CI_Model
     	}
     }
     
-     /**
-     * Insert a new record into the database,
-     * calling the before and after create callbacks.
-     * Returns the insert ID.
-     *
-     * @param array $data Information
-     * @return integer
-     */
-    public function insert($data, $skip_validation = FALSE)
-    {
-    	$data =  $this->trigger_event('before_insert', array($data));
-    	
-        $valid = ($skip_validation)?TRUE:$this->_run_validation($data);
-        
-        if ($valid)
-        {
-            $this->db->insert($this->_table, $data);
-            $this->trigger_event('after_insert', array( $data, $this->db->insert_id() ));
-            
-            return $this->db->insert_id();
-        } 
-        else 
-        {
-            return FALSE;
-        }
-    }
     
-   
+    /***************************************************************/
+   	/*                   PRIVATE/CORE METHOD					   */
+   	/***************************************************************/  
+   	 
   	/**
-     * Get all records in the database
+     * Get records in the database.
+     * Call before_find and after_find callbacks.
      *
+     * @param boolean $limit 
+     * @param boolean $offset 
      * @return array
      */
-    private function _find($limit=FALSE,$offset=FALSE)
+    private function _find($limit=NULL,$offset=NULL)
     {
         $this->trigger_event("before_find");
         
@@ -163,11 +171,40 @@ class MY_Model extends CI_Model
         return $result;
     }
     
-    /**
-     * Update a record, specified by an ID.
+	/**
+     * Insert a new record into the database.
+     * Call before_insert and after_insert callbacks.
+     * Return the insert ID.
      *
-     * @param integer $id The row's ID
-     * @param array $array The data to update
+     * @param array $data
+     * @param boolean $skip_validation 
+     * @return integer
+     */
+    private function _insert($data, $skip_validation = FALSE)
+    {
+    	$data =  $this->trigger_event('before_insert', array($data));
+    	
+        $valid = ($skip_validation)?TRUE:$this->_run_validation($data);
+        
+        if ($valid)
+        {
+            $this->db->set($data)->insert($this->_table);
+            $this->trigger_event('after_insert', array( $data, $this->db->insert_id() ));
+            
+            return $this->db->insert_id();
+        } 
+        else 
+        {
+            return FALSE;
+        }
+    }
+    
+    /**
+     * Update a record in the database.
+     * Call before_update and after_update callbacks.
+     * 
+     * @param array $data
+     * @param boolean $skip_validation   
      * @return bool
      */
     private function _update($data, $skip_validation = FALSE)
@@ -190,36 +227,22 @@ class MY_Model extends CI_Model
     }
     
     /**
-     * Delete a row from the database table by the
-     * ID.
-     *
-     * @param integer $id 
+     * Delete a record
+     * Call before_delete and after_delete callbacks.
+     * 
      * @return bool
      */
     private function _delete()
     {
        	$this->trigger_event('before_delete');
         $result = $this->db->delete($this->_table);
-        $this->trigger_event('after_delete', array( $result ));
+        $this->trigger_event('after_delete',array($result));
         
         return $result;
     }
     
-   
-    
-    /**
-     * Run the after_ callbacks, each callback taking a $data
-     * variable and returning it
-     */
-    private function trigger_event($method, $params = array())
-    {
-		return method_exists($this, $method)?
-        	call_user_func_array(array($this, $method), $params):
-        	FALSE;            
-    }
-    
-    /**
-     * Runs validation on the passed data.
+ 	/**
+     * Runs Codeigniter validation.
      *
      * @return bool
      */
@@ -250,4 +273,16 @@ class MY_Model extends CI_Model
             return TRUE;
         }
     }
+    
+    /**
+     * Run the callbacks
+     * 
+     */
+    private function trigger_event($method, $params = array())
+    {
+		return method_exists($this, $method)?
+        	call_user_func_array(array($this, $method), $params):
+        	array_shift($params);            
+    }
+       
 }
