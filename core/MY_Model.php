@@ -40,9 +40,9 @@ class MY_Model extends CI_Model
         
     	if (empty($this->_table))
         {
-            //tries to search for table name
+        	//tries to search for table name
         	        
-    	    $this->load->helper('inflector');
+			$this->load->helper('inflector');
         	
             $class_name = preg_replace('/(_db|_model)?$/', '', get_class($this));
             
@@ -50,85 +50,85 @@ class MY_Model extends CI_Model
         }       
     }
     
-    /**
+   	/**
      * The magic :)
      * 
-     */    	
-    public function __call($name, $args)
+	 */    
+  	public function __call($name, $args)
     {
     	/**
     	 * find / update / delete by primary key
     	 * 
     	 */
     	if (preg_match('/^(find|update|delete)$/', $name, $m) AND count($m) == 2)
-	{
-	    $method = $m[1];
+		{
+			$method = $m[1];
+			
+			return call_user_func_array(array($this, $method."_by_".$this->primary_key),$args);
+		}
 		
-	    return call_user_func_array(array($this, $method."_by_".$this->primary_key),$args);
-	}
-		
-	/**
+		/**
     	 * find / update / delete by custom field
     	 * 
     	 */
 		
     	if (preg_match('/^(find|update|delete)_by_([^)]+)$/', $name, $m) AND count($m) == 3)
-	{
-	    $method = $m[1];
-	    $field = $m[2];
+		{
+			$method = $m[1];
+			$field = $m[2];
+			
+			$values = array_shift($args);			
+			
+			array_unshift($args,array($field=>$values));
+						
+			return call_user_func_array(array($this, $method."_where"),$args);
+		}		    	
 		
-	    $values = array_shift($args);			
-		
-	    array_unshift($args,array($field=>$values));
-				
-	    return call_user_func_array(array($this, $method."_where"),$args);
-	}		    	
-		
-	/**
+		/**
     	 * find / update / delete by where codeigniter condition 
     	 * OR
     	 * find / update / delete all
     	 * 
     	 */
-	if (preg_match('/^(find|update|delete)_(where|all)$/', $name, $m) AND count($m) == 3)
-	{
-	    $method = $m[1];
-	    $type =$m[2];
-		
-	    if($type==="where"){
-	        $params = array_shift($args);
-		if(is_array($params)){				
-			foreach($params as $field=>$values){
-				if(is_array($values)){
-					$this->where_in($field,$values);	
+		if (preg_match('/^(find|update|delete)_(where|all)$/', $name, $m) AND count($m) == 3)
+		{
+			$method = $m[1];
+			$type =$m[2];
+			
+			if($type==="where"){
+				$params = array_shift($args);
+				if(is_array($params)){				
+					foreach($params as $field=>$values){
+						if(is_array($values)){
+							$this->where_in($field,$values);	
+						}else{
+							$this->where($field,$values);
+						}
+					}
 				}else{
-					$this->where($field,$values);
+					$this->where($params);
 				}
-			}
-		}else{
-			$this->where($params);
-		}
- 	    }						
+			}						
+			
+			return call_user_func_array(array($this, "_".$method),$args);
+		}	
 		
-	    return call_user_func_array(array($this, "_".$method),$args);
-	}	
-		
-	/**
+		/**
     	 * call database driver method
     	 * 
     	 */		
-	if (method_exists($this->db, $name)){
-	    return call_user_func_array(array($this->db,$name),$args);
-	}
+		if (method_exists($this->db, $name)){
+			return call_user_func_array(array($this->db,$name),$args);
+		}
     }
     
     
-    public function insert($data, $skip_validation = FALSE)
+	public function insert($data, $skip_validation = FALSE)
     {
     	return $this->_insert($data, $skip_validation);
     }
     
-    /**
+  	/**
      * Save a record into the database.
      * If the primary key exist then perform update else perform insert 
      *
@@ -140,18 +140,18 @@ class MY_Model extends CI_Model
     {
     	$data=(object)$data;
     	if(!empty($data->{$this->primary_key})){
-    	    return $this->update($data->{$this->primary_key}, $data, $skip_validation);
+    		return $this->update($data->{$this->primary_key}, $data, $skip_validation);
     	}else{
-    	    return $this->insert($data, $skip_validation);
+    		return $this->insert($data, $skip_validation);
     	}
     }
     
     
     /***************************************************************/
-    /*                   PRIVATE/CORE METHOD			   */
-    /***************************************************************/  
+   	/*                   PRIVATE/CORE METHOD					   */
+   	/***************************************************************/  
    	 
-    /**
+  	/**
      * Get records in the database.
      * Call before_find and after_find callbacks.
      *
@@ -171,7 +171,7 @@ class MY_Model extends CI_Model
         return $result;
     }
     
-    /**
+	/**
      * Insert a new record into the database.
      * Call before_insert and after_insert callbacks.
      * Return the insert ID.
@@ -241,7 +241,7 @@ class MY_Model extends CI_Model
         return $result;
     }
     
-    /**
+ 	/**
      * Runs Codeigniter validation.
      *
      * @return bool
@@ -280,9 +280,9 @@ class MY_Model extends CI_Model
      */
     private function trigger_event($method, $params = array())
     {
-	return method_exists($this, $method)?
-	call_user_func_array(array($this, $method), $params):
-	array_shift($params);            
+		return method_exists($this, $method)?
+        	call_user_func_array(array($this, $method), $params):
+        	array_shift($params);            
     }
        
 }
