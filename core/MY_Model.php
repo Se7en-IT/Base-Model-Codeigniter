@@ -105,7 +105,7 @@ class MY_Model extends CI_Model
 						}
 					}
 				}else{
-					$this->where($params);
+					$this->where($params,NULL,FALSE);
 				}
 			}
 
