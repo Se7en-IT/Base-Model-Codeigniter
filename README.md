@@ -1,7 +1,7 @@
 A Base Model Codeigniter with validation support
 ====================
 
-VERSION 1.0 ALPHA  
+VERSION 1.0 STABLE  
 
 Inspired by https://github.com/jamierumbelow/codeigniter-base-model.git  
 
