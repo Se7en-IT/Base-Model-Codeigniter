@@ -1,5 +1,5 @@
 -- ----------------------------
--- Table structure for `tests`
+-- Unit Test Table            -
 -- ----------------------------
 DROP TABLE IF EXISTS `tests`;
 CREATE TABLE `tests` (
@@ -9,4 +9,3 @@ CREATE TABLE `tests` (
   `date` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
-
